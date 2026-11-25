@@ -1,0 +1,23 @@
+[package]
+name = "credential-store-pinentry"
+version = "0.1.0"
+edition = "2024"
+description = "pinentry that answers the OpenPGP card PIN prompt from the OS credential store and hands every other prompt to a real pinentry"
+license = "MIT"
+repository = "https://github.com/truelecter/credential-store-pinentry"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+signal-hook = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Security_Credentials",
+  "Win32_System_JobObjects",
+  "Win32_System_Threading",
+] }
+
+[profile.release]
+lto = true
+strip = true

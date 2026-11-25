@@ -1,0 +1,24 @@
+# A `v*` tag builds the Windows exe natively and attaches it to a GitHub release.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo build --release --locked
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp target/release/credential-store-pinentry.exe .
+          sha256sum credential-store-pinentry.exe > credential-store-pinentry.exe.sha256
+          gh release create "$GITHUB_REF_NAME" --generate-notes credential-store-pinentry.exe credential-store-pinentry.exe.sha256

@@ -1,0 +1,55 @@
+# Flake checks on macOS and Linux (the Linux job also cross-builds the Windows exe), plus a native Windows
+# build with cargo so the release does not depend on Nix. `build_aggregated` always reports, so it can be
+# the one required check.
+name: Build
+on:
+  push:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-24.04
+          - system: aarch64-darwin
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/install-nix
+
+      - name: Check the flake
+        run: nix flake check -L
+
+      - name: Build the Windows exe
+        if: ${{ matrix.system == 'x86_64-linux' }}
+        run: nix build -L .#packages.x86_64-linux.windows
+
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+      - uses: actions/upload-artifact@v6
+        with:
+          name: credential-store-pinentry-windows-x64
+          path: target/release/credential-store-pinentry.exe
+
+  build_aggregated:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs: [nix, windows]
+    steps:
+      - run: exit 1
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+          }}
